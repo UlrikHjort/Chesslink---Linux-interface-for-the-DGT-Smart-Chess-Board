@@ -1,0 +1,15 @@
+project DGT_Smartboard is
+   for Source_Dirs use ("src", "tests", "SHA-1", "compress");
+   for Object_Dir  use "obj";
+   for Exec_Dir    use "bin";
+   for Main        use ("chesslink.adb", "raw_dump.adb", "tests.adb",
+                        "clkb_encode.adb", "clkb_decode.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-g", "-O1", "-gnatwa", "-gnatVa");
+   end Compiler;
+
+   package Linker is
+      for Default_Switches ("Ada") use ("-g");
+   end Linker;
+end DGT_Smartboard;

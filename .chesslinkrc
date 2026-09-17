@@ -1,0 +1,9 @@
+# Example .chesslinkrc file 
+unicode=1
+openings=~/openings/dgt_smartboard/data/openings.dat
+openings_sha1=40ad6b70cd3bad7481b86c0ea41075c4dcbf72ae
+#engine=~/engines/Arena/Engines/K2/k2_v.087_64
+engine=~engines/stockfish/stockfish
+lichess_token=<ADD LICHESS API TOKEN HERE>
+speech=1
+tts_model=~/.local/share/piper/en_US-lessac-medium.onnx
