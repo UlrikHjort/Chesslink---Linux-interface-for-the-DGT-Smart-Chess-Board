@@ -19,6 +19,7 @@ Connects via USB CDC/ACM, tracks games, exports PGN, and integrates Stockfish an
 - `piper` + an ONNX voice model - optional, for high-quality neural TTS announcements (recommended over espeak)
 - `aplay` (part of `alsa-utils`) - required when using piper
 - `python3` with `tkinter` - optional, for the big-display window
+- `python3` with `tkinter`, `cairosvg` and `Pillow` (`pip install cairosvg pillow`) - optional, for the graphical board window
 - `python3` - optional, for the web display
 
 ## Build
@@ -370,7 +371,9 @@ written after every move and can all run at the same time alongside the terminal
 ### Graphical board (`!boarddisplay`)
 
 Launches `tools/dgt_board.py` as a Tk window showing a full graphical chess
-board that updates after every move. Requires `python3` with `tkinter`.
+board that updates after every move. Requires `python3` with `tkinter`,
+plus the `cairosvg` and `Pillow` packages (`pip install cairosvg pillow`)
+to render the piece graphics.
 
 ```
 !boarddisplay
@@ -379,7 +382,9 @@ board that updates after every move. Requires `python3` with `tkinter`.
 <img src="screenshots/boarddisplay.png" width="400" alt="Graphical board window showing the current position, last-move highlight and best-move arrow">
 
 Features:
-- Board rendered with Unicode chess pieces; white pieces are solid white, black pieces solid dark
+- Board rendered with the Lichess "cburnett" piece set
+  (`tools/assets/pieces/cburnett/`, GPLv2+ -- see the LICENSE.md there;
+  unlike the rest of this project, that artwork is not MIT/public domain)
 - Last move highlighted in yellow-green
 - Best-move arrow drawn in cyan, toggled by a **Best move arrow** checkbox
 - Eval score colour-coded (green = White better, red = Black better)

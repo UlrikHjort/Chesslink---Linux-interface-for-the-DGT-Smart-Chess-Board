@@ -19,3 +19,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Exceptions
+
+The chess piece graphics in tools/assets/pieces/cburnett/ are the "cburnett"
+piece set by Colin M.L. Burnett, taken from the Lichess project
+(https://github.com/lichess-org/lila/tree/master/public/piece/cburnett) and
+distributed under the GNU General Public License v2.0 or later, not the MIT
+license above. See tools/assets/pieces/cburnett/LICENSE.md for details.

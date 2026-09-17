@@ -27,19 +27,30 @@
 """Graphical chess board display for DGT Smart Board.
 
 Reads /tmp/dgt_status.txt (written by the main Ada program after every move)
-and renders the current position as a coloured board with Unicode pieces.
-Also shows the last move, eval score, and opening name below the board.
+and renders the current position as a coloured board using the Lichess
+"cburnett" piece set (assets/pieces/cburnett/, GPLv2+ -- see the LICENSE.md
+next to those SVGs). Also shows the last move, eval score, and opening name
+below the board.
+
+Requires the 'cairosvg' and 'Pillow' packages (pip install cairosvg pillow)
+to rasterise the piece SVGs.
 
 Launch via '!boarddisplay' in the board app, or directly:
     python3 tools/dgt_board.py [/path/to/status/file]
 """
 
-import tkinter as tk
+import io
 import os
 import sys
+import tkinter as tk
+
+import cairosvg
+from PIL import Image, ImageTk
 
 STATUS_FILE = "/tmp/dgt_status.txt"
 POLL_MS     = 400
+PIECE_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "assets", "pieces", "cburnett")
 
 # Colour palette
 BG          = "#1e1e2e"
@@ -57,26 +68,23 @@ ARROW_CLR   = "#89dceb"   # cyan - visible on both light and dark squares
 FONT_MONO   = "DejaVu Sans Mono"
 FONT_SANS   = "DejaVu Sans"
 
-# Both sides use the filled (black) glyphs; colour distinguishes the sides.
-# The outline (white) glyphs look hollow at any size, so we avoid them.
-PIECE_UNICODE: dict[str, str] = {
-    "K": "♚", "Q": "♛", "R": "♜", "B": "♝", "N": "♞", "P": "♟",
-    "k": "♚", "q": "♛", "r": "♜", "b": "♝", "n": "♞", "p": "♟",
+# FEN piece letter -> cburnett SVG filename (w/b + King/Queen/Rook/Bishop/Knight/Pawn)
+PIECE_FILE: dict[str, str] = {
+    "K": "wK", "Q": "wQ", "R": "wR", "B": "wB", "N": "wN", "P": "wP",
+    "k": "bK", "q": "bQ", "r": "bR", "b": "bB", "n": "bN", "p": "bP",
 }
 
-# Piece colours on the board (not the square colour)
-PIECE_COLOR: dict[str, str] = {
-    "K": "#ffffff", "Q": "#ffffff", "R": "#ffffff",
-    "B": "#ffffff", "N": "#ffffff", "P": "#ffffff",
-    "k": "#1c1c1c", "q": "#1c1c1c", "r": "#1c1c1c",
-    "b": "#1c1c1c", "n": "#1c1c1c", "p": "#1c1c1c",
-}
-PIECE_OUTLINE: dict[str, str] = {
-    "K": "#333333", "Q": "#333333", "R": "#333333",
-    "B": "#333333", "N": "#333333", "P": "#333333",
-    "k": "#cccccc", "q": "#cccccc", "r": "#cccccc",
-    "b": "#cccccc", "n": "#cccccc", "p": "#cccccc",
-}
+
+def _load_piece_svgs() -> dict[str, bytes]:
+    """Read each cburnett SVG once; rasterisation happens later, per size."""
+    svgs = {}
+    for letter, name in PIECE_FILE.items():
+        with open(os.path.join(PIECE_DIR, f"{name}.svg"), "rb") as f:
+            svgs[letter] = f.read()
+    return svgs
+
+
+PIECE_SVG = _load_piece_svgs()
 
 
 def parse_fen_board(fen: str) -> list[list[str]]:
@@ -133,6 +141,7 @@ class BoardApp:
         self._show_arrow  = tk.BooleanVar(value=True)
         self._show_coords = tk.BooleanVar(value=True)
         self._sq_size    = self.MIN_SQ
+        self._piece_images: dict[tuple[str, int], ImageTk.PhotoImage] = {}
 
         root.title("DGT Board")
         root.configure(bg=BG)
@@ -213,6 +222,17 @@ class BoardApp:
         y0 = (h - board_px) // 2
         return x0, y0
 
+    def _piece_image(self, letter: str, px: int) -> ImageTk.PhotoImage:
+        """Rasterise (and cache) a cburnett piece SVG at `px` pixels square."""
+        key = (letter, px)
+        img = self._piece_images.get(key)
+        if img is None:
+            png_bytes = cairosvg.svg2png(
+                bytestring=PIECE_SVG[letter], output_width=px, output_height=px)
+            img = ImageTk.PhotoImage(Image.open(io.BytesIO(png_bytes)))
+            self._piece_images[key] = img
+        return img
+
     def _draw_arrow(
         self,
         move: tuple[tuple[int, int], tuple[int, int]],
@@ -259,11 +279,13 @@ class BoardApp:
         sq     = self._sq_size_from_canvas()
         x0, y0 = self._board_offset(sq)
 
+        if sq != self._sq_size:
+            self._sq_size = sq
+            self._piece_images.clear()  # drop the previous size's rasters
+
         last_sqs: set[tuple[int, int]] = set()
         if self._last_move:
             last_sqs = {self._last_move[0], self._last_move[1]}
-
-        piece_font_size = max(12, int(sq * 0.72))
 
         for rank in range(8):
             for file in range(8):
@@ -286,19 +308,9 @@ class BoardApp:
 
                 piece = self._board[board_rank][board_file]
                 if piece:
-                    glyph   = PIECE_UNICODE.get(piece, piece)
-                    fg      = PIECE_COLOR.get(piece, "#000000")
-                    outline = PIECE_OUTLINE.get(piece, "#888888")
-                    cx = px + sq // 2
-                    cy = py + sq // 2
-                    # Thin outline for contrast against any square colour
-                    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                        c.create_text(cx + dx, cy + dy, text=glyph,
-                                      font=(FONT_SANS, piece_font_size),
-                                      fill=outline, anchor="center")
-                    c.create_text(cx, cy, text=glyph,
-                                  font=(FONT_SANS, piece_font_size),
-                                  fill=fg, anchor="center")
+                    img = self._piece_image(piece, sq)
+                    c.create_image(px + sq // 2, py + sq // 2,
+                                    image=img, anchor="center")
 
         # Rank numbers and file letters drawn inside the border squares
         # so they are never clipped by the canvas edge.
